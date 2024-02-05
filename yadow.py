@@ -1,6 +1,5 @@
 from yandex_music import Client
 
-
 client = Client().init()
 
 type_to_name = {
@@ -14,34 +13,38 @@ type_to_name = {
     'podcast_episode': 'эпизод подкаста',
 }
 
+def get_best_track_info(search_result):
+    if search_result.best:
+        type_ = search_result.best.type
+        best = search_result.best.result
+
+        if type_ in ['track', 'podcast_episode']:
+            artists = ', '.join(artist.name for artist in best.artists)
+            return f'{best.title} - {artists}', best.download_info
+
+    return None, None
+
+def download_track(download_info, filename):
+    try:
+        download_url = download_info.get_download_link()
+        print(f'Downloading: {filename}')
+        client.downloader.download(download_url, f'{filename}.mp3')
+        print('Download complete!')
+    except Exception as e:
+        print(f'Error during download: {e}')
 
 def send_search_request_and_print_result(query):
     search_result = client.search(query)
 
     text = [f'Результаты по запросу "{query}":', '']
 
-    best_result_text = ''
-    if search_result.best:
-        type_ = search_result.best.type
-        best = search_result.best.result
+    best_result_text, download_info = get_best_track_info(search_result)
 
-        text.append(f'❗️Лучший результат: {type_to_name.get(type_)}')
-
-        if type_ in ['track', 'podcast_episode']:
-            artists = ''
-            if best.artists:
-                artists = ' - ' + ', '.join(artist.name for artist in best.artists)
-            best_result_text = best.title + artists
-        elif type_ == 'artist':
-            best_result_text = best.name
-        elif type_ in ['album', 'podcast']:
-            best_result_text = best.title
-        elif type_ == 'playlist':
-            best_result_text = best.title
-        elif type_ == 'video':
-            best_result_text = f'{best.title} {best.text}'
-
+    if best_result_text:
+        text.append(f'❗️Лучший результат: {type_to_name.get(search_result.best.type)}')
         text.append(f'Содержимое лучшего результата: {best_result_text}\n')
+
+        download_track(download_info, best_result_text)
 
     if search_result.artists:
         text.append(f'Исполнителей: {search_result.artists.total}')
@@ -56,7 +59,6 @@ def send_search_request_and_print_result(query):
 
     text.append('')
     print('\n'.join(text))
-
 
 if __name__ == '__main__':
     while True:

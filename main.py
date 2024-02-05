@@ -30,14 +30,17 @@ def get_music_info(url):
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
         track_title = soup.find('meta', property='og:title')
-        
+
         if track_title:
-            return track_title['content']
+            # Extracting only the artist and track name from the title
+            title_content = track_title['content'].split(' слушать онлайн на Яндекс Музыке')[0]
+            return title_content
         else:
             return 'Информация о музыке не найдена'
     except Exception as e:
         print(f"Error: {e}")
         return 'Произошла ошибка при получении информации о музыке'
+
 
 def send_search_request(query):
     search_result = client.search(query)
@@ -49,11 +52,13 @@ def handle_start(message):
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
+    print(f"{message.from_user.username}: {message.text}")
     try:
         url = message.text
         if is_yandex_music_url(url):
             music_info = get_music_info(url)
             bot.send_message(message.chat.id, f'Найдена музыка: {music_info}')
+            print(f'BOT -> {message.from_user.username}: Найдена музыка: {music_info}')
         else:
             search_result = send_search_request(url)
             if search_result.best:
@@ -64,21 +69,16 @@ def handle_message(message):
                     if best.artists:
                         artists = ' - ' + ', '.join(artist.name for artist in best.artists)
                         best_result_text = best.title + artists
-                elif type_ == 'artist':
-                    best_result_text = best.name
-                elif type_ in ['album', 'podcast']:
-                    best_result_text = best.title
-                elif type_ == 'playlist':
-                    best_result_text = best.title
-                elif type_ == 'video':
-                    best_result_text = f'{best.title} {best.text}'
+                
                 #
                 bot.send_message(message.chat.id, f'Лучший результат: {best_result_text}')
+                print(f'BOT -> {message.from_user.username}: Лучший результат: {best_result_text}')
             else:
                 bot.send_message(message.chat.id, 'Это не ссылка на Яндекс.Музыку.')
-    except:
-        bot.send_message(message.chat.id, f'Появилась ошибка. Но я должен дальше работать')
-        
+                print(f"BOT -> {message.from_user.username}: Это не ссылка на Яндекс.Музыку.")
+    except Exception as e:
+        bot.send_message(message.chat.id, f'Появилась ошибка - {e}. Но я должен дальше работать')
+    
 
 if __name__ == "__main__":
     bot.polling(none_stop=True)
