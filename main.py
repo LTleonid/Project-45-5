@@ -2,8 +2,11 @@ import telebot
 from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
-from yandex_music import Client  # Добавлено для использования функции поиска музыки
+from yandex_music import Client,  # Добавлено для использования функции поиска музыки
 from datetime import datetime  # Added to get the current time
+from urllib.request import urlopen
+import re
+
 
 log_file = open("log.txt", "a", encoding="utf-8")
 
@@ -23,6 +26,20 @@ type_to_name = {
     'podcast': 'подкаст',
     'podcast_episode': 'эпизод подкаста',
 }
+
+def has_emoji(text):
+    emoji_pattern = re.compile("["
+                               u"\U0001F600-\U0001F64F"  # эмодзи с улыбающимися лицами
+                               u"\U0001F300-\U0001F5FF"  # другие эмодзи и символы
+                               u"\U0001F680-\U0001F6FF"  # транспорт и символы
+                               u"\U0001F700-\U0001F77F"  # символы категории 'дополнительные'
+                               u"\U0001F780-\U0001F7FF"  # символы категории 'эмодзи-дополнительные'
+                               u"\U0001F800-\U0001F8FF"  # символы категории 'дополнительные'
+                               u"\U0001F900-\U0001F9FF"  # символы категории 'эмодзи-дополнительные'
+                               u"\U0001FA00-\U0001FA6F"  # символы категории 'дополнительные'
+                               u"\U0001FA70-\U0001FAFF"  # символы категории 'эмодзи-дополнительные'
+                               "]+", flags=re.UNICODE)
+    return bool(emoji_pattern.search(text))
 
 def is_yandex_music_url(url):
     parsed_url = urlparse(url)
@@ -79,34 +96,55 @@ def handle_message(message):
         else:
             search_result = send_search_request(url)
             if search_result.best:
-                type_ = search_result.best.type
                 best = search_result.best.result
+            else:
+                temp = search_result
+                for i in client.search_suggest(search_result):
+                    if not(search_result.best):
+                        search_result = temp + str(i)
+                    else:
+                        break
+                best = search_result.best.result
+                type_ = search_result.best.type
                 if type_ in ['track', 'podcast_episode']:
                     artists = ''
                     if best.artists:
                         artists = ' - ' + ', '.join(artist.name for artist in best.artists)
                         best_result_text = best.title + artists
-
-                bot.send_message(message.chat.id, f'Лучший результат: {best_result_text}')
-
-                # Log bot's response
-                bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Лучший результат: {best_result_text}\n"
-                log_file.write(bot_response_log)
-                log_file.flush()  # Ensure that the log is written immediately
-
-                print(bot_response_log)
-            else:
+            if not(search_result.best):
                 bot.send_message(message.chat.id, 'Это не ссылка на Яндекс.Музыку.')
 
                 # Log bot's response
                 bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Это не ссылка на Яндекс.Музыку.\n"
                 log_file.write(bot_response_log)
                 log_file.flush()  # Ensure that the log is written immediately
+            if best.content_warning == 'explicit':
+                bot.send_message(message.chat.id, f'Песня {best_result_text} содержит маты.')
+                bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Err: Песня {best_result_text} содержит маты.\n"
+                log_file.write(bot_response_log)
+                log_file.flush()
+            url_ogg = best.get_og_image_url()
+                
+            photo1 = urlopen(url_ogg)
+            bot.send_photo(message.chat.id, photo1)
+            bot.send_message(message.chat.id, f'Лучший результат: {best_result_text}')
 
-                print(bot_response_log)
+            # Log bot's response
+            bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Лучший результат: {best_result_text}\n"
+            log_file.write(bot_response_log)
+            log_file.flush()  # Ensure that the log is written immediately
+
+            print(bot_response_log)
+            
+
+            print(bot_response_log)
     except Exception as e:
-        error_message = f"{current_time} | BOT -> {message.from_user.username}: Появилась ошибка - {e}. Но я должен дальше работать\n"
-        bot.send_message(message.chat.id, error_message)
+        if has_emoji(message.text):
+            error_message = f"{current_time} | BOT -> {message.from_user.username}: Появилась ошибка, Эмодзи в тексте\n"
+            bot.send_message(message.chat.id, 'Я не могу распознать текст из-за эмодзи')
+        else:
+            error_message = f"{current_time} | BOT -> {message.from_user.username}: Появилась ошибка - {e}. Но я должен дальше работать\n"
+            bot.send_message(message.chat.id, error_message)
 
         # Log bot's response
         log_file.write(error_message)
