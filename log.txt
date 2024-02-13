@@ -181,3 +181,5 @@ Mike Candys
 2024-02-13 01:31:06 | BOT -> LT_Leonid: Появилась ошибка - local variable 'best_result_text' referenced before assignment. Но я должен дальше работать
 2024-02-13 01:31:13 | LT_Leonid: 😑
 2024-02-13 01:31:13 | BOT -> LT_Leonid: Появилась ошибка, Эмодзи в тексте
+2024-02-13 01:47:32 | LT_Leonid: ...
+2024-02-13 01:47:32 | BOT -> LT_Leonid: Появилась ошибка - local variable 'best_result_text' referenced before assignment. Но я должен дальше работать

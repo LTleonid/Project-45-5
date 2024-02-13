@@ -2,16 +2,16 @@ import telebot
 from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
-from yandex_music import Client,  # Добавлено для использования функции поиска музыки
+from yandex_music import Client  # Добавлено для использования функции поиска музыки
 from datetime import datetime  # Added to get the current time
 from urllib.request import urlopen
 import re
-
-
+import var
+TOKEN = var.TOKEN
 log_file = open("log.txt", "a", encoding="utf-8")
 
 # Замените YOUR_BOT_TOKEN на токен вашего бота
-TOKEN = "6770656878:AAHL9nYL6TZZLfZoh-NFQgU01YH4dHp7uc0"
+
 
 bot = telebot.TeleBot(TOKEN)
 client = Client().init()  # Инициализация Yandex.Music Client
