@@ -1,20 +1,8 @@
-from yandex_music import Client
+from yandex_music import Client, ArtistTracks
 
 
-client = Client()
-search_text = '...'
-search_result = client.search(search_text)
-temp = ''
-if search_result.best:
-    best = search_result.best.result
-    print(best.title)
+client = Client('y0_AgAAAAAz5EsoAAG8XgAAAADwqKYWZE3PswvKQgqZ2J9pyYkaDrU94iw').init()
+c = client.tracks(['10994777:1193829'])
+print(c)
 
-else:
-    temp = search_text
-    for i in client.search_suggest(search_text):
-        if not(search_result.best):
-            search_result = temp + str(i)
-        else:
-            break
-    best = search_result.best.result
-print(best.title)
+

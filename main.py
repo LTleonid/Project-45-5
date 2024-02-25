@@ -8,14 +8,14 @@ from urllib.request import urlopen
 import re
 import var
 TOKEN = var.Telebot_TOKEN
-Yandex_TOKEN = var.Yandex_TOKEN
+YTOKEN = var.Yandex_TOKEN
 log_file = open("log.txt", "a", encoding="utf-8")
 
 # Замените YOUR_BOT_TOKEN на токен вашего бота
 
 
 bot = telebot.TeleBot(TOKEN)
-client = Client(Yandex_TOKEN).init()  # Инициализация Yandex.Music Client
+client = Client(YTOKEN).init()  # Инициализация Yandex.Music Client
 
 type_to_name = {
     'track': 'трек',
@@ -48,19 +48,21 @@ def is_yandex_music_url(url):
 
 def get_music_info(url):
     try:
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        track_title = soup.find('meta', property='og:title')
-
-        if track_title:
-            # Extracting only the artist and track name from the title
-            title_content = track_title['content'].split(' слушать онлайн на Яндекс Музыке')[0]
-            return title_content
+        id = re.findall(r'\d+', url)
+        print(id)
+        if id:
+            track_id = f"{id[1]}:{id[0]}"  # Combine the found IDs into the correct format
+            print(track_id)
+            first_track = client.tracks([track_id])  # Pass the track ID as a list
+            title = first_track[0]['title']  # Access the first element of the returned list
+            artist_name = first_track[0]['artists'][0]['name']
+            return f"{title} - {artist_name}"
         else:
             return 'Информация о музыке не найдена'
     except Exception as e:
         print(f"Error: {e}")
         return 'Произошла ошибка при получении информации о музыке'
+
 
 
 def send_search_request(query):
@@ -85,16 +87,18 @@ def handle_message(message):
     try:
         url = message.text
         if is_yandex_music_url(url):
+            #Поиск по URL TODO
             music_info = get_music_info(url)
             bot.send_message(message.chat.id, f'Найдена музыка: {music_info}')
 
-            # Log bot's response
+            # Логирование поиска
             bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Найдена музыка: {music_info}\n"
             log_file.write(bot_response_log)
-            log_file.flush()  # Ensure that the log is written immediately
-
+            log_file.flush()  
             print(bot_response_log)
+
         else:
+            
             search_result = send_search_request(url)
             if search_result.best:
                 best = search_result.best.result
@@ -105,40 +109,45 @@ def handle_message(message):
                         search_result = temp + str(i)
                     else:
                         break
-                best = search_result.best.result
-                type_ = search_result.best.type
-                if type_ in ['track', 'podcast_episode']:
+
+            best = search_result.best.result
+            type_ = search_result.best.type
+            if type_ != 'artist':
+                
+                if type_ in ['track']:
                     artists = ''
                     if best.artists:
                         artists = ' - ' + ', '.join(artist.name for artist in best.artists)
                         best_result_text = best.title + artists
-            if not(search_result.best):
-                bot.send_message(message.chat.id, 'Это не ссылка на Яндекс.Музыку.')
+                if not(search_result.best):
+                    bot.send_message(message.chat.id, 'Это не ссылка на Яндекс.Музыку.')
 
-                # Log bot's response
-                bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Это не ссылка на Яндекс.Музыку.\n"
-                log_file.write(bot_response_log)
-                log_file.flush()  # Ensure that the log is written immediately
-            if best.content_warning == 'explicit':
-                bot.send_message(message.chat.id, f'Песня {best_result_text} содержит маты.')
-                bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Err: Песня {best_result_text} содержит маты.\n"
-                log_file.write(bot_response_log)
-                log_file.flush()
-            url_ogg = best.get_og_image_url()
+                    # Log bot's response
+                    bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Это не ссылка на Яндекс.Музыку.\n"
+                    log_file.write(bot_response_log)
+                    log_file.flush()  # Ensure that the log is written immediately
                 
-            photo1 = urlopen(url_ogg)
-            bot.send_photo(message.chat.id, photo1)
-            bot.send_message(message.chat.id, f'Лучший результат: {best_result_text}')
+                #Проверка на маты
+                if best.content_warning == 'explicit':
+                    bot.send_message(message.chat.id, f'Песня {best_result_text} содержит маты.')
+                    bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Err: Песня {best_result_text} содержит маты.\n"
+                    log_file.write(bot_response_log)
+                    log_file.flush()
+                
+                #Вывод изображение песни
+                url_ogg = best.get_og_image_url()    
+                photo1 = urlopen(url_ogg)
+                bot.send_photo(message.chat.id, photo1)
+                bot.send_message(message.chat.id, f'Лучший результат: {best_result_text}')
 
-            # Log bot's response
-            bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Лучший результат: {best_result_text}\n"
-            log_file.write(bot_response_log)
-            log_file.flush()  # Ensure that the log is written immediately
-
-            print(bot_response_log)
-            
-
-            print(bot_response_log)
+                # Логирование лучших результатов
+                bot_response_log = f"{current_time} | BOT -> {message.from_user.username}: Лучший результат: {best_result_text}\n"
+                log_file.write(bot_response_log)
+                log_file.flush()  
+                print(bot_response_log)
+            else:
+                bot.send_message(message.chat.id, 'Простите я не смог распознать песню, возможно вы ввели автора')
+                
     except Exception as e:
         if has_emoji(message.text):
             error_message = f"{current_time} | BOT -> {message.from_user.username}: Появилась ошибка, Эмодзи в тексте\n"
