@@ -56,6 +56,10 @@ def get_music_info(url):
             first_track = client.tracks([track_id])  # Pass the track ID as a list
             title = first_track[0]['title']  # Access the first element of the returned list
             artist_name = first_track[0]['artists'][0]['name']
+            if first_track[0]["content_warning"] == "explicit":
+                bot.send_message(message.chat.id, f'Песня {title} содержит маты.')
+                log_file.write(bot_response_log)
+                log_file.flush()
             return f"{title} - {artist_name}"
         else:
             return 'Информация о музыке не найдена'
