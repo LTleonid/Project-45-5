@@ -1,12 +1,12 @@
 import telebot
 from urllib.parse import urlparse
-import requests
-from bs4 import BeautifulSoup
 from yandex_music import Client  # Добавлено для использования функции поиска музыки
 from datetime import datetime  # Added to get the current time
 from urllib.request import urlopen
 import re
 import var
+import subprocess
+import sys
 TOKEN = var.Telebot_TOKEN
 YTOKEN = var.Yandex_TOKEN
 log_file = open("log.txt", "a", encoding="utf-8")
@@ -56,10 +56,8 @@ def get_music_info(url):
             first_track = client.tracks([track_id])  # Pass the track ID as a list
             title = first_track[0]['title']  # Access the first element of the returned list
             artist_name = first_track[0]['artists'][0]['name']
-            if first_track[0]["content_warning"] == "explicit":
-                bot.send_message(message.chat.id, f'Песня {title} содержит маты.')
-                log_file.write(bot_response_log)
-                log_file.flush()
+            if first_track[0]['content_warning'] == "explicit":
+                return f'{title} - {artist_name} | Песня содержит маты'
             return f"{title} - {artist_name}"
         else:
             return 'Информация о музыке не найдена'
@@ -67,16 +65,20 @@ def get_music_info(url):
         print(f"Error: {e}")
         return 'Произошла ошибка при получении информации о музыке'
 
-
-
 def send_search_request(query):
     search_result = client.search(query)
     return search_result
 
-@bot.message_handler(commands=['start'])
+
+@bot.message_handler(commands=["start"])
 def handle_start(message):
     bot.send_message(message.chat.id, 'Привет! Я бот для проверки ссылок на наличие музыки от Яндекс.Музыки.')
-
+@bot.message_handler(commands=["stop"])
+def handle_stop(message):
+    if message.from_user.username == 'LT_Leonid':
+        bot.stop_polling()
+    else:
+        bot.send_message(message.chat.id, "У вас недостаточно прав.")
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -116,7 +118,7 @@ def handle_message(message):
 
             best = search_result.best.result
             type_ = search_result.best.type
-            if type_ != 'artist':
+            if type_ == 'track':
                 
                 if type_ in ['track']:
                     artists = ''
@@ -150,7 +152,7 @@ def handle_message(message):
                 log_file.flush()  
                 print(bot_response_log)
             else:
-                bot.send_message(message.chat.id, 'Простите я не смог распознать песню, возможно вы ввели автора')
+                bot.send_message(message.chat.id, 'Простите я не смог распознать песню.')
                 
     except Exception as e:
         if has_emoji(message.text):
