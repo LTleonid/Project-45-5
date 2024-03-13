@@ -9,7 +9,6 @@ import subprocess
 import sys
 TOKEN = var.Telebot_TOKEN
 YTOKEN = var.Yandex_TOKEN
-stop_flag = False
 log_file = open("log.txt", "a", encoding="utf-8")
 
 # Замените YOUR_BOT_TOKEN на токен вашего бота
@@ -47,7 +46,7 @@ def is_yandex_music_url(url):
     parsed_url = urlparse(url)
     return 'music.yandex' in parsed_url.netloc
 
-def get_music_info(url,message):
+def get_music_info(url, message):
     try:
         id = re.findall(r'\d+', url)
         print(id)
@@ -56,14 +55,15 @@ def get_music_info(url,message):
             print(track_id)
             first_track = client.tracks([track_id])  # Pass the track ID as a list
             title = first_track[0]['title']  # Access the first element of the returned list
+            ogg_url = client.search(first_track[0]['title']).best.result
+            ogg_url = ogg_url.get_og_image_url
+            print(ogg_url)
+            photo_ogg = urlopen(ogg_url)
+            bot.send_photo(message, photo_ogg)
             artist_name = first_track[0]['artists'][0]['name']
-            url_ogg = first_track[0]['cover_uri'].rstrip("%%")+"200x200"
-            print(url_ogg)
-            photo1 = urlopen(url_ogg)
-            bot.send_photo(message, photo1)
             if first_track[0]['content_warning'] == "explicit":
-                return f'{title} - {artist_name} | Песня содержит маты',url_ogg
-            return f"{title} - {artist_name}",url_ogg
+                return f'{title} - {artist_name} | Песня содержит маты'
+            return f"{title} - {artist_name}"
         else:
             return 'Информация о музыке не найдена'
     except Exception as e:
@@ -77,14 +77,10 @@ def send_search_request(query):
 
 @bot.message_handler(commands=["start"])
 def handle_start(message):
-    global stop_flag
-    stop_flag = True
     bot.send_message(message.chat.id, 'Привет! Я бот для проверки ссылок на наличие музыки от Яндекс.Музыки.')
 @bot.message_handler(commands=["stop"])
 def handle_stop(message):
-    global stop_flag
-    if message.from_user.username == 'LT_Leonid' and stop_flag:
-        stop_flag = False
+    if message.from_user.username == 'LT_Leonid':
         bot.stop_polling()
     else:
         bot.send_message(message.chat.id, "У вас недостаточно прав.")
